@@ -1,5 +1,3 @@
-import parseUsername from './helpers/parseUsername.js';
+import FileManager from './FileManager/FileManager.js';
 
-const name = parseUsername();
-
-console.log(`Welcome to the File Manager, ${name}!`);
+new FileManager();
