@@ -7,9 +7,11 @@ const handleError = (error) => {
     }
     case ERRORS.invalidInput: {
       console.error(ERRORS.invalidInput);
+      break;
     }
-    default: {
+    case ERRORS.operationFailed: {
       console.error(ERRORS.operationFailed);
+      break;
     }
   }
 };

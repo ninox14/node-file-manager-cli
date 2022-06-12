@@ -1,5 +1,5 @@
-const logCurrentPath = (path) => {
-  console.log(`You are currently in ${path}`);
+const logCurrentPath = (FileManager) => () => {
+  console.log(`You are currently in ${FileManager.currentPath}`);
 };
 
 export default logCurrentPath;

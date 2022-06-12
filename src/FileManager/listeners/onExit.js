@@ -1,4 +1,4 @@
 const onExit = (userName) => () => {
-  console.log(`Thank you for using File Manager, ${userName}!`);
+  console.log(`\nThank you for using File Manager, ${userName}!`);
 };
 export default onExit;

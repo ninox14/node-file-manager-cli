@@ -5,3 +5,9 @@ export const ERRORS = {
   invalidInput: 'Invalid input',
   operationFailed: 'Operation failed',
 };
+
+export const COMMAND_TYPE = {
+  path: 'path',
+  os: 'os',
+  basic: 'basic',
+};
