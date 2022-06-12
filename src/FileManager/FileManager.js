@@ -1,18 +1,29 @@
-import { existsSync, lstatSync, readdirSync } from 'fs';
+import {
+  copyFileSync,
+  createReadStream,
+  createWriteStream,
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  readdirSync,
+  renameSync,
+  unlinkSync,
+} from 'fs';
 import { EOL, homedir } from 'os';
-import { parse, resolve } from 'path';
+import { basename, dirname, join, parse, resolve } from 'path';
 import { stdin, stdout } from 'process';
 import { createInterface } from 'readline';
-import { COMMAND_TYPE, ERRORS } from '../constants.js';
+import { COMMAND_TYPE, ERRORS, QUOTES_REGEX } from '../constants.js';
 import handleError from '../helpers/handleError.js';
 import parseInputLine from '../helpers/parseInputLine.js';
 import parseUsername from '../helpers/parseUsername.js';
+import removeFile from '../helpers/removeFile.js';
 import onExit from './listeners/onExit.js';
 
 class FileManager {
   userName = parseUsername();
-  // currentPath = homedir();
-  _currentPath = `F:\\Projects\\rsSchool\\repos\\nodeJsCourse\\node-file-manager-cli\\.dist`;
+  // _currentPath = homedir();
+  _currentPath = `F:\\Projects\\rsSchool\\repos\\nodeJsCourse\\node-file-manager-cli\\dist`;
 
   basicMethods = {
     ls: this.readDir.bind(this),
@@ -22,11 +33,15 @@ class FileManager {
 
   pathMethods = {
     cd: this.changeDirectory.bind(this),
-    cat: () => {},
-    add: () => {},
-    rn: () => {},
-    cp: () => {},
-    mv: () => {},
+    cat: this.readFile.bind(this),
+    add: this.addFile.bind(this),
+    rn: this.rename.bind(this),
+    cp: (...args) => {
+      this.copy(false, args);
+    },
+    mv: (...args) => {
+      this.copy(true, args);
+    },
     rm: () => {},
     hash: () => {},
     compress: () => {},
@@ -46,13 +61,21 @@ class FileManager {
   constructor() {
     console.log(`Welcome to the File Manager, ${this.userName}!`);
     this.logPath();
+    // this.askUser();
 
     // Listeners
     process.on('exit', onExit(this.userName));
-    this.rl.on('line', this.onLine);
+    this.rl.on('line', this.onAnswer);
   }
 
-  onLine = async (input) => {
+  // askUser() {
+  //   this.rl.question(
+  //     `You are currently in ${this._currentPath}\n$ `,
+  //     this.onAnswer.bind(this)
+  //   );
+  // }
+
+  onAnswer = async (input) => {
     this.logPath();
     const [command, ...args] = parseInputLine(input);
 
@@ -62,6 +85,9 @@ class FileManager {
       const method = this.selectMethod(commandType, command, args);
 
       await this.execute(method, args);
+    } else {
+      // this.askUser();
+      // handleError(ERRORS.invalidInput);
     }
   };
 
@@ -80,6 +106,22 @@ class FileManager {
       return COMMAND_TYPE.os;
     }
     handleError(ERRORS.invalidInput);
+  }
+
+  // clearPath(path, ...args) {
+  //   if (QUOTES_REGEX.test(path)) {
+
+  //   }
+  // }
+
+  validateFilePath(path, ...args) {
+    const filePath = resolve(
+      this._currentPath,
+      join([path, ...args].join(' '))
+    );
+    return existsSync(filePath) && lstatSync(filePath).isFile()
+      ? filePath
+      : null;
   }
 
   selectMethod(commandType, command, argsArray) {
@@ -104,16 +146,20 @@ class FileManager {
     if (isMethodExists) {
       return this.osMethods[methodName];
     }
-    return () => handleError(ERRORS.invalidInput);
+    return () => {
+      handleError(ERRORS.invalidInput);
+    };
   }
 
   async execute(method, argsArray) {
     try {
       await method(...argsArray);
       this.logPath();
+      // this.askUser();
     } catch (e) {
       console.log(e.message);
       handleError(ERRORS.operationFailed);
+      // this.askUser();
     }
   }
 
@@ -122,20 +168,24 @@ class FileManager {
   }
 
   changeDirectory(path, ...args) {
-    if (args.length) {
+    if (args.length || !path) {
       handleError(ERRORS.invalidInput);
     }
-    const newPath = resolve(this._currentPath, path);
+    const newPath = resolve(this._currentPath, join([path, ...args].join(' ')));
     const isValidFolder =
       existsSync(newPath) && lstatSync(newPath).isDirectory();
     if (isValidFolder) {
       this._currentPath = newPath;
     } else {
-      throw new Error('Invalid path');
+      handleError(ERRORS.invalidInput);
     }
   }
 
-  readDir() {
+  readDir(...args) {
+    if (args.length) {
+      handleError(ERRORS.invalidInput);
+      return;
+    }
     const files = readdirSync(this._currentPath, { withFileTypes: true });
     if (files.length) {
       files.forEach((file) => {
@@ -148,6 +198,78 @@ class FileManager {
       });
     } else {
       console.log('Empty folder.');
+    }
+  }
+
+  readFile(path, ...args) {
+    if (args.length) {
+      handleError(ERRORS.invalidInput);
+      return;
+    }
+    const filePath = this.validateFilePath(path, ...args);
+
+    if (filePath) {
+      console.log('-- Start of file --');
+      const rs = createReadStream(filePath);
+      return new Promise((res) => {
+        rs.pipe(stdout);
+        rs.on('end', () => {
+          console.log('\n -- End of file --');
+          res();
+        });
+      });
+    }
+    handleError(ERRORS.invalidInput);
+  }
+
+  addFile(fileName, ...args) {
+    const ws = createWriteStream(join(this._currentPath, fileName));
+    ws.close();
+  }
+
+  rename(path, name, ...args) {
+    const filePath = this.validateFilePath(path);
+    if (filePath) {
+      renameSync(filePath, join(dirname(filePath), name));
+    } else {
+      handleError(ERRORS.invalidInput);
+    }
+  }
+
+  copy(isMove = false, [path, dir, ...args]) {
+    const filePath = this.validateFilePath(resolve(this._currentPath, path));
+    const dirPath = resolve(this._currentPath, dir);
+    const fileStats = lstatSync(filePath);
+    const fileName = basename(filePath);
+    const destPath = join(dirPath, fileName);
+
+    if (!existsSync(dirPath)) {
+      mkdirSync(dirPath, { recursive: true });
+    }
+    if (filePath && fileStats.isFile()) {
+      if (!existsSync(destPath)) {
+        return new Promise((res) => {
+          const rs = createReadStream(filePath);
+          const ws = createWriteStream(destPath);
+
+          rs.pipe(ws);
+          ws.on('finish', res);
+        }).then(removeFile(isMove, filePath));
+      } else {
+        return new Promise((res) => {
+          const rs = createReadStream(filePath);
+          const ws = createWriteStream(
+            join(dirPath, `${Date.now()}${fileName}`)
+          );
+
+          rs.pipe(ws);
+          ws.on('finish', () => {
+            res();
+          });
+        }).then(removeFile(isMove, filePath));
+      }
+    } else {
+      handleError(ERRORS.invalidInput);
     }
   }
 }

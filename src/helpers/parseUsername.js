@@ -4,7 +4,7 @@ import handleError from './handleError.js';
 const parseUsername = () => {
   const args = process.argv.slice(2);
 
-  const userName = args[0].split(USERNAME_ARG_PREFIX)[1];
+  const userName = args[0] ? args[0].split(USERNAME_ARG_PREFIX)[1] : null;
   const isUsernameArgMissing = !args[0] || !userName;
 
   if (isUsernameArgMissing) {

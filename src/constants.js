@@ -11,3 +11,5 @@ export const COMMAND_TYPE = {
   os: 'os',
   basic: 'basic',
 };
+
+export const QUOTES_REGEX = /[\"\']/g;
