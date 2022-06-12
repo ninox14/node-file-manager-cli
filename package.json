@@ -1,0 +1,21 @@
+{
+  "name": "file-manager-cli",
+  "version": "1.0.0",
+  "description": "file manager cli",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node src/index.js --username=NiNoX"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ninox14/node-file-manager-cli.git"
+  },
+  "author": "NiNoX14",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ninox14/node-file-manager-cli/issues"
+  },
+  "homepage": "https://github.com/ninox14/node-file-manager-cli#readme"
+}
