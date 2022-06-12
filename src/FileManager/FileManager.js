@@ -85,19 +85,11 @@ class FileManager {
   constructor() {
     console.log(`Welcome to the File Manager, ${this.userName}!`);
     this.logPath();
-    // this.askUser();
 
     // Listeners
     process.on('exit', onExit(this.userName));
     this.rl.on('line', this.onAnswer);
   }
-
-  // askUser() {
-  //   this.rl.question(
-  //     `You are currently in ${this._currentPath}\n$ `,
-  //     this.onAnswer.bind(this)
-  //   );
-  // }
 
   onAnswer = async (input) => {
     this.logPath();
@@ -110,8 +102,7 @@ class FileManager {
 
       await this.execute(method, args);
     } else {
-      // this.askUser();
-      // handleError(ERRORS.invalidInput);
+      this.logPath();
     }
   };
 
@@ -131,12 +122,6 @@ class FileManager {
     }
     handleError(ERRORS.invalidInput);
   }
-
-  // clearPath(path, ...args) {
-  //   if (QUOTES_REGEX.test(path)) {
-
-  //   }
-  // }
 
   validateFilePath(path, ...args) {
     const filePath = resolve(
