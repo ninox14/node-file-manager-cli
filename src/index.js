@@ -1,3 +1,3 @@
 import FileManager from './FileManager/FileManager.js';
 
-new FileManager();
+const fm = new FileManager();

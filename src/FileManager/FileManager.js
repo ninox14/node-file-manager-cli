@@ -1,3 +1,4 @@
+import { createHash } from 'crypto';
 import {
   copyFileSync,
   createReadStream,
@@ -9,10 +10,12 @@ import {
   renameSync,
   unlinkSync,
 } from 'fs';
-import { EOL, homedir } from 'os';
+import { arch, cpus, EOL, homedir, userInfo } from 'os';
 import { basename, dirname, join, parse, resolve } from 'path';
 import { stdin, stdout } from 'process';
 import { createInterface } from 'readline';
+import { finished, pipeline } from 'stream/promises';
+import { createBrotliCompress, createBrotliDecompress } from 'zlib';
 import { COMMAND_TYPE, ERRORS, QUOTES_REGEX } from '../constants.js';
 import handleError from '../helpers/handleError.js';
 import parseInputLine from '../helpers/parseInputLine.js';
@@ -22,8 +25,8 @@ import onExit from './listeners/onExit.js';
 
 class FileManager {
   userName = parseUsername();
-  // _currentPath = homedir();
-  _currentPath = `F:\\Projects\\rsSchool\\repos\\nodeJsCourse\\node-file-manager-cli\\dist`;
+  _currentPath = homedir();
+  // _currentPath = `F:\\Projects\\rsSchool\\repos\\nodeJsCourse\\node-file-manager-cli\\dist`;
 
   basicMethods = {
     ls: this.readDir.bind(this),
@@ -42,18 +45,39 @@ class FileManager {
     mv: (...args) => {
       this.copy(true, args);
     },
-    rm: () => {},
-    hash: () => {},
-    compress: () => {},
-    decompress: () => {},
+    rm: this.delete.bind(this),
+    hash: this.hash.bind(this),
+    compress: this.compress.bind(this),
+    decompress: this.decompress.bind(this),
   };
 
   osMethods = {
-    '--EOL': () => {},
-    '--cpus': () => {},
-    '--homedir': () => {},
-    '--username': () => {},
-    '--architecture': () => {},
+    '--EOL': () => {
+      if (EOL === '\n') {
+        console.log('\\n');
+      } else {
+        console.log('\\n\\r');
+      }
+    },
+    '--cpus': () => {
+      console.table(
+        cpus().map((val) => [
+          val.model,
+          val.speed < 1000
+            ? (val.speed / 10).toFixed(2) + ' GHz'
+            : (val.speed / 1000).toFixed(2) + ' GHz',
+        ])
+      );
+    },
+    '--homedir': () => {
+      console.log(homedir());
+    },
+    '--username': () => {
+      console.log(userInfo().username);
+    },
+    '--architecture': () => {
+      console.log(arch());
+    },
   };
 
   rl = createInterface({ input: stdin, output: stdout });
@@ -271,6 +295,51 @@ class FileManager {
     } else {
       handleError(ERRORS.invalidInput);
     }
+  }
+
+  delete(path, ...args) {
+    const filePath = this.validateFilePath(path, ...args);
+    if (filePath) {
+      unlinkSync(filePath);
+    } else {
+      handleError(ERRORS.invalidInput);
+    }
+  }
+
+  async hash(path, ...args) {
+    const filePath = this.validateFilePath(path, ...args);
+    if (filePath) {
+      const hash = createHash('sha256');
+      const rs = createReadStream(filePath);
+      rs.on('data', (data) => hash.update(data));
+
+      await finished(rs);
+
+      console.log(hash.digest('hex'));
+    } else {
+      handleError(ERRORS.invalidInput);
+    }
+  }
+
+  async compress(path, dest, ...args) {
+    const filePath = this.validateFilePath(resolve(this._currentPath, path));
+    const destPath = resolve(this._currentPath, dest);
+
+    const brotil = createBrotliCompress({ level: 9 });
+    const rs = createReadStream(filePath);
+    const ws = createWriteStream(destPath, { flags: 'wx' });
+
+    await pipeline(rs, brotil, ws);
+  }
+  async decompress(path, dest, ...args) {
+    const filePath = this.validateFilePath(resolve(this._currentPath, path));
+    const destPath = resolve(this._currentPath, dest);
+
+    const brotiluz = createBrotliDecompress();
+    const rs = createReadStream(filePath);
+    const ws = createWriteStream(destPath, { flags: 'wx' });
+
+    await pipeline(rs, brotiluz, ws);
   }
 }
 
